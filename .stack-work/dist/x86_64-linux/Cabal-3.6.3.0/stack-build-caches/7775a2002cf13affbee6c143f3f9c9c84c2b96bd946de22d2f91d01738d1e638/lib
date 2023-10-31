@@ -1,0 +1,24 @@
+/home/nikita/.ghcup/ghc/9.2.8/lib/ghc-9.2.8/include/ghcversion.h:
+  hash: 10980ec0f1a6f6f31856fe1e1a51a5359d97b178636eae9fb2348f20c650207a
+? /home/nikita/haskell-codeworld-template/.stack-work/dist/x86_64-linux/Cabal-3.6.3.0/build/autogen/Paths_haskell_codeworld_template.hs
+: hash: 9102624ddd36669129330251075e72482506196bc88d4b8299ec90096b75d87f
+/home/nikita/haskell-codeworld-template/.stack-work/dist/x86_64-linux/Cabal-3.6.3.0/build/autogen/cabal_macros.h:
+  hash: 1695d456d2bf39f1971fb58d139aa7a0d4492a32ef3b28dcc3e20e30a75be2b7
+/home/nikita/haskell-codeworld-template/ChangeLog.md:
+  hash: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+/home/nikita/haskell-codeworld-template/README.md:
+  hash: 46c6b6939f2101b71bf1ba8c5378a743c7d0d966d5020eb4b4348e0dc5d6abac
+/home/nikita/haskell-codeworld-template/Setup.hs:
+  hash: 5066653559d4d6134b022d66a634a17fdcf8db35d28b447e581fec284afa4689
+/home/nikita/haskell-codeworld-template/haskell-codeworld-template.cabal:
+  hash: 36c666b48977eb6563550be505d99739e21a9d468915177c139bac4003996c41
+/home/nikita/haskell-codeworld-template/package.yaml:
+  hash: a8e2cf94d81b39950a88d557cf03b0659cf4f63ff8a960a5b6e9675ad542967a
+/home/nikita/haskell-codeworld-template/src/FB.hs:
+  hash: 1bbec69f05f0bcffcaaf0c3a6343470ead1334c662c43865cefdcb60e24dceb4
+/home/nikita/haskell-codeworld-template/src/MyFB.hs:
+  hash: 5f1c634b6c0b92622705e7b48a219e7ada7defe4e0932094033e108309ca2067
+/home/nikita/haskell-codeworld-template/src/Project.hs:
+  hash: acdce09c369b0c10cf0548fe7f6b568dd1f72ec4b18aa0483e50e01a53978017
+/usr/include/stdc-predef.h:
+  hash: d6bcc58441a423bbb3a52171fcd3b84d8b36e332a55221a1c3e6e899bc43ccb3
