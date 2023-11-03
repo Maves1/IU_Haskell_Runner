@@ -22,12 +22,13 @@ data GameState
 -- We need to store game state
 data Game =
   Game
-    { manSpeedX :: Float
-    , manSpeedY :: Float
-    , gameSpeed :: Float
-    , gameState :: GameState
-    , manPosX   :: Float
-    , manPosY   :: Float
+    { manSpeedX      :: Float
+    , manSpeedY      :: Float
+    , gameSpeed      :: Float
+    , gameState      :: GameState
+    , manPosX        :: Float
+    , manPosY        :: Float
+    , backgroundPosX :: Float
     }
   deriving (Show)
 
@@ -45,6 +46,12 @@ manSize = 128
 
 grassSize :: Float
 grassSize = 160
+
+grassWidth :: Float
+grassWidth = 2048
+
+skyWidth :: Float
+skyWidth = 4096
 
 bottomBorder :: Float
 bottomBorder = -windowSizeY / 2 + grassSize
@@ -75,12 +82,13 @@ welcomePic = unsafePerformIO . loadBMP . getSprite $ "sky"
 
 render :: Game -> Picture
 render game
-  | gameState game == Welcome = pictures [backstage]
-  | gameState game == Running = pictures [backstage, renderPlayer]
-  | otherwise = pictures [backstage]
+  | gameState game == Welcome = pictures [renderBackstage]
+  | gameState game == Running = pictures [renderBackstage, renderPlayer]
+  | otherwise = pictures [renderBackstage]
   where
     renderPlayer = translate (manPosX game) (manPosY game) manPic
     backstage = pictures [skyPic, grassPic]
+    renderBackstage = translate (backgroundPosX game) 0 backstage
 
 -- | Physics constants
 gAcc :: Float
@@ -97,14 +105,18 @@ updateGame seconds game =
   game
     { manPosY = nextManPosY
     , manSpeedY = nextManSpeedY
+    , backgroundPosX = nextBackgroundPosX
     }
-    where
-      nextManPosY
-        | checkFloorCollision game = bottomBorder
-        | otherwise = manPosY game + manSpeedY game * seconds
-      nextManSpeedY
-        | checkFloorCollision game = 0
-        | otherwise = manSpeedY game - gAcc * seconds
+  where
+    nextManPosY
+      | checkFloorCollision game = bottomBorder
+      | otherwise = manPosY game + manSpeedY game * seconds
+    nextManSpeedY
+      | checkFloorCollision game = 0
+      | otherwise = manSpeedY game - gAcc * seconds
+    nextBackgroundPosX
+      | backgroundPosX game >= -grassWidth / 2 + 350 = backgroundPosX game - 5
+      | otherwise = grassWidth / 2 - 350
 
 initGame :: Game
 initGame =
@@ -115,6 +127,7 @@ initGame =
     , gameState = Running
     , manPosX = -100
     , manPosY = bottomBorder
+    , backgroundPosX = 0
     }
 
 greenCircle :: Picture
@@ -122,13 +135,11 @@ greenCircle = color green $ circleSolid 10
 
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
-  game {
-    manSpeedY = newManSpeedY
-    }
-    where
-      newManSpeedY
-        | manPosY game == bottomBorder = jumpForce
-        | otherwise = manSpeedY game
+  game {manSpeedY = newManSpeedY}
+  where
+    newManSpeedY
+      | manPosY game == bottomBorder = jumpForce
+      | otherwise = manSpeedY game
 handleEvents _ game = game
 
 runGame :: IO ()
