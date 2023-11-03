@@ -8,10 +8,10 @@ import Graphics.Gloss
 import Graphics.Gloss.Data.Bitmap ()
 import Graphics.Gloss.Interface.IO.Game
 
--- Run: stack ghc -- flappy_bird_example.hs -o main -threaded
+-- Run: stack ghc -- Game.hs -o main -threaded
 
 
-data GameState = Welcome | Running | Paused | Over | Finished deriving Show
+data GameState = Welcome | Running | Paused | Over | Finished deriving (Show, Eq)
 
 -- We need to store game state
 data Game = Game {
@@ -46,15 +46,23 @@ getSprite name = "sprites/" ++ name ++ ".bmp"
 manPic :: Picture
 manPic = unsafePerformIO . loadBMP . getSprite $ "man"
 
--- render :: Game -> Picture
--- render game
---     | gameState game == Welcome = pictures [backstage, welcomePic]
---     | gameState game == Running = pictures [standard, manPic]
---     | otherwise = pictures [backstage]
---     where
---         backstage = pictures [
+grassPic :: Picture
+grassPic = unsafePerformIO . loadBMP . getSprite $ "grass"
 
---         ]
+skyPic :: Picture
+skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
+
+welcomePic :: Picture
+welcomePic = unsafePerformIO . loadBMP . getSprite $ "sky"
+
+render :: Game -> Picture
+render game
+    | gameState game == Welcome = pictures [backstage, welcomePic]
+    | gameState game == Running = pictures [manPic]
+    | otherwise = pictures [backstage]
+    where
+        backstage = pictures [
+            grassPic]
 
 -- | Physics constants
 
@@ -64,7 +72,14 @@ gAcc = 9.8
 jumpForce :: Double
 jumpForce = 20
 
+initGame :: Game
+initGame = Game {
+    manSpeedX = 0,
+    manSpeedY = 0,
+    gameSpeed = 0,
+    gameState = Welcome
+}
+
 runGame :: IO ()
-runGame = do
-    print "Hello, World!"
+runGame = display window white (render initGame)
     
