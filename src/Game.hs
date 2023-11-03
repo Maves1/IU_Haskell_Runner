@@ -46,6 +46,9 @@ manSize = 128
 grassSize :: Float
 grassSize = 160
 
+bottomBorder :: Float
+bottomBorder = -windowSizeY / 2 + grassSize
+
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
 
@@ -86,6 +89,23 @@ gAcc = 300
 jumpForce :: Float
 jumpForce = 300
 
+checkFloorCollision :: Game -> Bool
+checkFloorCollision game = manPosY game < bottomBorder
+
+updateGame :: Float -> Game -> Game
+updateGame seconds game =
+  game
+    { manPosY = nextManPosY
+    , manSpeedY = nextManSpeedY
+    }
+    where
+      nextManPosY
+        | checkFloorCollision game = bottomBorder
+        | otherwise = manPosY game + manSpeedY game * seconds
+      nextManSpeedY
+        | checkFloorCollision game = 0
+        | otherwise = manSpeedY game - gAcc * seconds
+
 initGame :: Game
 initGame =
   Game
@@ -94,7 +114,7 @@ initGame =
     , gameSpeed = 0
     , gameState = Running
     , manPosX = -100
-    , manPosY = -windowSizeY / 2 + grassSize
+    , manPosY = bottomBorder
     }
 
 greenCircle :: Picture
@@ -102,18 +122,15 @@ greenCircle = color green $ circleSolid 10
 
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
-  game {manSpeedY = jumpForce}
+  game {
+    manSpeedY = newManSpeedY
+    }
+    where
+      newManSpeedY
+        | manPosY game == bottomBorder = jumpForce
+        | otherwise = manSpeedY game
 handleEvents _ game = game
-
-
 
 runGame :: IO ()
 runGame = do
-  play window white 60 initGame render handleEvents update
-  where
-    update :: Float -> Game -> Game
-    update seconds game =
-      game
-        { manPosY = manPosY game + manSpeedY game * seconds
-        , manSpeedY = manSpeedY game - gAcc * seconds
-        }
+  play window white 60 initGame render handleEvents updateGame
