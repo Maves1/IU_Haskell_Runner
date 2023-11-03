@@ -26,6 +26,8 @@ data Game =
     , manSpeedY :: Float
     , gameSpeed :: Float
     , gameState :: GameState
+    , manPosX   :: Float
+    , manPosY   :: Float
     }
   deriving (Show)
 
@@ -37,6 +39,12 @@ windowSizeX = 700
 
 windowSizeY :: Float
 windowSizeY = 700
+
+manSize :: Float
+manSize = 128
+
+grassSize :: Float
+grassSize = 160
 
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
@@ -65,21 +73,29 @@ welcomePic = unsafePerformIO . loadBMP . getSprite $ "sky"
 render :: Game -> Picture
 render game
   | gameState game == Welcome = pictures [backstage]
-  | gameState game == Running = pictures [backstage, manPic]
+  | gameState game == Running = pictures [backstage, renderPlayer]
   | otherwise = pictures [backstage]
   where
+    renderPlayer = translate (manPosX game) (manPosY game) manPic
     backstage = pictures [skyPic, grassPic]
 
 -- | Physics constants
 gAcc :: Float
-gAcc = 9.8
+gAcc = 300
 
 jumpForce :: Float
-jumpForce = 20
+jumpForce = 300
 
 initGame :: Game
 initGame =
-  Game {manSpeedX = 0, manSpeedY = 0, gameSpeed = 0, gameState = Running}
+  Game
+    { manSpeedX = 0
+    , manSpeedY = 0
+    , gameSpeed = 0
+    , gameState = Running
+    , manPosX = -100
+    , manPosY = -windowSizeY / 2 + grassSize
+    }
 
 greenCircle :: Picture
 greenCircle = color green $ circleSolid 10
@@ -91,10 +107,13 @@ handleEvents _ game = game
 
 
 
-
 runGame :: IO ()
 runGame = do
   play window white 60 initGame render handleEvents update
   where
     update :: Float -> Game -> Game
-    update seconds game = game {manSpeedY = manSpeedY game - gAcc * seconds}
+    update seconds game =
+      game
+        { manPosY = manPosY game + manSpeedY game * seconds
+        , manSpeedY = manSpeedY game - gAcc * seconds
+        }
