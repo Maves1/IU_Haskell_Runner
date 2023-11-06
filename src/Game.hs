@@ -22,13 +22,13 @@ data GameState
 -- We need to store game state
 data Game =
   Game
-    { manSpeedX      :: Float
-    , manSpeedY      :: Float
-    , gameSpeed      :: Float
-    , gameState      :: GameState
-    , manPosX        :: Float
-    , manPosY        :: Float
-    , backgrounds    :: [Float]
+    { manSpeedX            :: Float
+    , manSpeedY            :: Float
+    , gameSpeed            :: Float
+    , gameState            :: GameState
+    , manPosX              :: Float
+    , manPosY              :: Float
+    , backgrounds          :: [Float]
     , backgroundPosX       :: Float
     , obstacles            :: [Float]
     , obstaclesTranslation :: Float
@@ -71,7 +71,6 @@ obstacleY = bottomBorder - 30
 obstaclePic :: Picture
 obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
 
-
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
 
@@ -108,12 +107,12 @@ debugPic x y = translate x y $ color red $ circleSolid 5
 render :: Game -> Picture
 render game
   | gameState game == Welcome = pictures [renderBackstage]
-  | gameState game == Running = pictures [renderBackstage, renderPlayer, renderObstacles]
+  | gameState game == Running =
+    pictures [renderBackstage, renderPlayer, renderObstacles]
   | otherwise = pictures [renderBackstage]
   where
     renderPlayer = translate (manPosX game) (manPosY game) manPic
     backstage = pictures [skyPic, grassPic]
-
     curBackstagePos = head $ backgrounds game
     nextBackstagePos = head $ tail $ backgrounds game
     renderBackstage =
@@ -125,14 +124,9 @@ render game
         (initTranslateGrass + backgroundPosX game + nextBackstagePos)
         0
         backstage
-
     nextObstaclePos = head (obstacles game) + obstaclesTranslation game
-    renderObstacles =
-      translate nextObstaclePos obstacleY obstaclePic
+    renderObstacles = translate nextObstaclePos obstacleY obstaclePic
 
--- >>> initTranslateGrass
--- 674.0
--- | Physics constants
 gAcc :: Float
 gAcc = 600
 
@@ -141,6 +135,8 @@ jumpForce = 400
 
 checkFloorCollision :: Game -> Bool
 checkFloorCollision game = manPosY game < bottomBorder
+
+
 
 updateGame :: Float -> Game -> Game
 updateGame seconds game =
@@ -157,6 +153,7 @@ updateGame seconds game =
       | checkFloorCollision game = bottomBorder
       | otherwise = manPosY game + manSpeedY game * seconds
     nextManSpeedY
+      | manSpeedY game == 0 = 0
       | checkFloorCollision game = 0
       | otherwise = manSpeedY game - gAcc * seconds
     nextBackgroundPosX = backgroundPosX game - 4
@@ -165,16 +162,13 @@ updateGame seconds game =
         drop 1 $ backgrounds game
       | otherwise = backgrounds game
     nextObstaclesTranslation
-      | obstaclesTranslation game < - windowSizeX / 2 - 100 - head (obstacles game) = 0
+      | obstaclesTranslation game <
+          -windowSizeX / 2 - 100 - head (obstacles game) = 0
       | otherwise = obstaclesTranslation game - 4
     nextObstacles
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
       | otherwise = obstacles game
 
--- testGame :: Game
--- testGame = initGame{backgroundPosX = -grassWidth, backgrounds = take 5 $ backgrounds initGame}
--- >>> updateGame 0 testGame
--- Game {manSpeedX = 0.0, manSpeedY = 0.0, gameSpeed = 0.0, gameState = Running, manPosX = -100.0, manPosY = -190.0, backgrounds = [2048.0,4096.0,6144.0,8192.0], backgroundPosX = -2052.0}
 initGame :: StdGen -> Game
 initGame g =
   Game
@@ -190,6 +184,15 @@ initGame g =
     , obstaclesTranslation = 1
     }
 
+testGen :: StdGen
+testGen = mkStdGen 0
+
+testGame :: Game
+testGame = initGame testGen
+
+-- >>> checkFloorCollision testGame
+-- False
+
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
   game {manSpeedY = newManSpeedY}
@@ -203,5 +206,3 @@ runGame :: IO ()
 runGame = do
   g <- newStdGen
   play window white 60 (initGame g) render handleEvents updateGame
--- runGame :: IO ()
--- runGame = display window white (render initGame)
