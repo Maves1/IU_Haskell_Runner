@@ -29,8 +29,9 @@ data Game =
     , manPosX        :: Float
     , manPosY        :: Float
     , backgrounds    :: [Float]
-    , backgroundPosX :: Float
-    , obstacles      :: [Float]
+    , backgroundPosX       :: Float
+    , obstacles            :: [Float]
+    , obstaclesTranslation :: Float
     }
   deriving (Show)
 
@@ -59,10 +60,13 @@ bottomBorder :: Float
 bottomBorder = -windowSizeY / 2 + grassSize
 
 obstacleWidth :: Float
-obstacleWidth = 10
+obstacleWidth = 30
 
 obstacleHeight :: Float
-obstacleHeight = 30
+obstacleHeight = 100
+
+obstacleY :: Float
+obstacleY = bottomBorder - 30
 
 obstaclePic :: Picture
 obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
@@ -104,11 +108,12 @@ debugPic x y = translate x y $ color red $ circleSolid 5
 render :: Game -> Picture
 render game
   | gameState game == Welcome = pictures [renderBackstage]
-  | gameState game == Running = pictures [renderBackstage, renderPlayer]
+  | gameState game == Running = pictures [renderBackstage, renderPlayer, renderObstacles]
   | otherwise = pictures [renderBackstage]
   where
     renderPlayer = translate (manPosX game) (manPosY game) manPic
     backstage = pictures [skyPic, grassPic]
+
     curBackstagePos = head $ backgrounds game
     nextBackstagePos = head $ tail $ backgrounds game
     renderBackstage =
@@ -121,14 +126,18 @@ render game
         0
         backstage
 
+    nextObstaclePos = head (obstacles game) + obstaclesTranslation game
+    renderObstacles =
+      translate nextObstaclePos obstacleY obstaclePic
+
 -- >>> initTranslateGrass
 -- 674.0
 -- | Physics constants
 gAcc :: Float
-gAcc = 300
+gAcc = 600
 
 jumpForce :: Float
-jumpForce = 300
+jumpForce = 400
 
 checkFloorCollision :: Game -> Bool
 checkFloorCollision game = manPosY game < bottomBorder
@@ -140,6 +149,8 @@ updateGame seconds game =
     , manSpeedY = nextManSpeedY
     , backgroundPosX = nextBackgroundPosX
     , backgrounds = nextBackgrounds
+    , obstacles = nextObstacles
+    , obstaclesTranslation = nextObstaclesTranslation
     }
   where
     nextManPosY
@@ -153,13 +164,19 @@ updateGame seconds game =
       | nextBackgroundPosX < -(head $ tail $ backgrounds game) =
         drop 1 $ backgrounds game
       | otherwise = backgrounds game
+    nextObstaclesTranslation
+      | obstaclesTranslation game < - windowSizeX / 2 - 100 - head (obstacles game) = 0
+      | otherwise = obstaclesTranslation game - 4
+    nextObstacles
+      | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
+      | otherwise = obstacles game
 
 -- testGame :: Game
 -- testGame = initGame{backgroundPosX = -grassWidth, backgrounds = take 5 $ backgrounds initGame}
 -- >>> updateGame 0 testGame
 -- Game {manSpeedX = 0.0, manSpeedY = 0.0, gameSpeed = 0.0, gameState = Running, manPosX = -100.0, manPosY = -190.0, backgrounds = [2048.0,4096.0,6144.0,8192.0], backgroundPosX = -2052.0}
-initGame :: Game
-initGame =
+initGame :: StdGen -> Game
+initGame g =
   Game
     { manSpeedX = 0
     , manSpeedY = 0
@@ -169,7 +186,8 @@ initGame =
     , manPosY = bottomBorder
     , backgrounds = [0,grassWidth ..]
     , backgroundPosX = 0
-    , obstacles = []
+    , obstacles = randomRs (350, 1000) g
+    , obstaclesTranslation = 1
     }
 
 handleEvents :: Event -> Game -> Game
@@ -183,6 +201,7 @@ handleEvents _ game = game
 
 runGame :: IO ()
 runGame = do
-  play window white 60 initGame render handleEvents updateGame
+  g <- newStdGen
+  play window white 60 (initGame g) render handleEvents updateGame
 -- runGame :: IO ()
 -- runGame = display window white (render initGame)
