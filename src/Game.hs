@@ -89,8 +89,10 @@ getSprite name = "sprites/" ++ name ++ ".bmp"
 
 -- backgroundPic :: Picture
 -- backgroundPic =
+-- manPic :: Picture
+-- manPic = unsafePerformIO . loadBMP . getSprite $ "man"
 manPic :: Picture
-manPic = unsafePerformIO . loadBMP . getSprite $ "man"
+manPic = color black $ rectangleSolid manSize manSize
 
 grassPic :: Picture
 grassPic = unsafePerformIO . loadBMP . getSprite $ "bg1"
@@ -136,7 +138,21 @@ jumpForce = 400
 checkFloorCollision :: Game -> Bool
 checkFloorCollision game = manPosY game < bottomBorder
 
+checkCrush :: Game -> Bool
+checkCrush game =
+  let playerPosX = manPosX game
+      playerPosY = manPosY game
+      obstaclePosX = head (obstacles game) + obstaclesTranslation game
+      obstaclePosY = obstacleY
+   in (playerPosX + manSize / 2) >= (obstaclePosX -  obstacleWidth / 2) &&
+      playerPosX <= (obstaclePosX + obstacleWidth / 2) &&
+      playerPosY <= (obstaclePosY + obstacleHeight)
 
+updateGameSate :: Game -> GameState
+updateGameSate game
+  | gameState game == Over = Over
+  | checkCrush game = Over
+  | otherwise = gameState game
 
 updateGame :: Float -> Game -> Game
 updateGame seconds game =
@@ -147,6 +163,7 @@ updateGame seconds game =
     , backgrounds = nextBackgrounds
     , obstacles = nextObstacles
     , obstaclesTranslation = nextObstaclesTranslation
+    , gameState = updateGameSate game
     }
   where
     nextManPosY
@@ -156,7 +173,7 @@ updateGame seconds game =
       | manSpeedY game == 0 = 0
       | checkFloorCollision game = 0
       | otherwise = manSpeedY game - gAcc * seconds
-    nextBackgroundPosX = backgroundPosX game - 4
+    nextBackgroundPosX = backgroundPosX game - gameSpeed game
     nextBackgrounds
       | nextBackgroundPosX < -(head $ tail $ backgrounds game) =
         drop 1 $ backgrounds game
@@ -164,7 +181,7 @@ updateGame seconds game =
     nextObstaclesTranslation
       | obstaclesTranslation game <
           -windowSizeX / 2 - 100 - head (obstacles game) = 0
-      | otherwise = obstaclesTranslation game - 4
+      | otherwise = obstaclesTranslation game - gameSpeed game
     nextObstacles
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
       | otherwise = obstacles game
@@ -174,7 +191,7 @@ initGame g =
   Game
     { manSpeedX = 0
     , manSpeedY = 0
-    , gameSpeed = 0
+    , gameSpeed = 4
     , gameState = Running
     , manPosX = -100
     , manPosY = bottomBorder
@@ -192,7 +209,6 @@ testGame = initGame testGen
 
 -- >>> checkFloorCollision testGame
 -- False
-
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
   game {manSpeedY = newManSpeedY}
@@ -200,6 +216,7 @@ handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
     newManSpeedY
       | manPosY game == bottomBorder = jumpForce
       | otherwise = manSpeedY game
+handleEvents (EventKey (Char 'r') Down _ _) game = initGame testGen
 handleEvents _ game = game
 
 runGame :: IO ()
