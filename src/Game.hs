@@ -28,6 +28,7 @@ data Game =
     , gameState      :: GameState
     , manPosX        :: Float
     , manPosY        :: Float
+    , backgrounds    :: [Float]
     , backgroundPosX :: Float
     }
   deriving (Show)
@@ -59,6 +60,12 @@ bottomBorder = -windowSizeY / 2 + grassSize
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
 
+initTranslateGrass :: Float
+initTranslateGrass = grassWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
+
+initTranslateSky :: Float
+initTranslateSky = skyWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
+
 -- | Graphics helper functions
 window :: Display
 window = InWindow title (round windowSizeX, round windowSizeY) windowPosition
@@ -80,15 +87,31 @@ skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
 welcomePic :: Picture
 welcomePic = unsafePerformIO . loadBMP . getSprite $ "sky"
 
+debugPic :: Float -> Float -> Picture
+debugPic x y = translate x y $ color red $ circleSolid 5
+
 render :: Game -> Picture
 render game
   | gameState game == Welcome = pictures [renderBackstage]
-  | gameState game == Running = pictures [renderBackstage, renderPlayer]
+  | gameState game == Running =
+    pictures [renderBackstage, renderPlayer] <>
+    debugPic (grassWidth - windowSizeX / 2) 0
   | otherwise = pictures [renderBackstage]
   where
     renderPlayer = translate (manPosX game) (manPosY game) manPic
-    backstage = pictures [skyPic, grassPic]
-    renderBackstage = translate (backgroundPosX game) 0 backstage
+    backstage = pictures [grassPic]
+    curBackstagePos = head $ backgrounds game
+    nextBackstagePos = head $ tail $ backgrounds game
+    renderBackstage =
+      translate (initTranslateSky + backgroundPosX game) 0 skyPic <>
+      translate
+        (initTranslateGrass + backgroundPosX game + curBackstagePos)
+        0
+        backstage <>
+      translate
+        (initTranslateGrass + backgroundPosX game + nextBackstagePos)
+        0
+        backstage
 
 -- | Physics constants
 gAcc :: Float
@@ -114,9 +137,7 @@ updateGame seconds game =
     nextManSpeedY
       | checkFloorCollision game = 0
       | otherwise = manSpeedY game - gAcc * seconds
-    nextBackgroundPosX
-      | backgroundPosX game >= -grassWidth / 2 + 350 = backgroundPosX game - 5
-      | otherwise = grassWidth / 2 - 350
+    nextBackgroundPosX = backgroundPosX game - 4
 
 initGame :: Game
 initGame =
@@ -127,11 +148,9 @@ initGame =
     , gameState = Running
     , manPosX = -100
     , manPosY = bottomBorder
+    , backgrounds = [0,grassWidth ..]
     , backgroundPosX = 0
     }
-
-greenCircle :: Picture
-greenCircle = color green $ circleSolid 10
 
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
@@ -145,3 +164,6 @@ handleEvents _ game = game
 runGame :: IO ()
 runGame = do
   play window white 60 initGame render handleEvents updateGame
+
+-- runGame :: IO ()
+-- runGame = display window white (render initGame)
