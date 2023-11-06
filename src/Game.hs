@@ -30,11 +30,12 @@ data Game =
     , manPosY        :: Float
     , backgrounds    :: [Float]
     , backgroundPosX :: Float
+    , obstacles      :: [Float]
     }
   deriving (Show)
 
 title :: String
-title = "Идущий к Реке v1.0 pre-alpha"
+title = "Идущий к Реке v1.0 alpha"
 
 windowSizeX :: Float
 windowSizeX = 700
@@ -52,10 +53,20 @@ grassWidth :: Float
 grassWidth = 2048
 
 skyWidth :: Float
-skyWidth = 4096
+skyWidth = 2048
 
 bottomBorder :: Float
 bottomBorder = -windowSizeY / 2 + grassSize
+
+obstacleWidth :: Float
+obstacleWidth = 10
+
+obstacleHeight :: Float
+obstacleHeight = 30
+
+obstaclePic :: Picture
+obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
+
 
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
@@ -93,17 +104,14 @@ debugPic x y = translate x y $ color red $ circleSolid 5
 render :: Game -> Picture
 render game
   | gameState game == Welcome = pictures [renderBackstage]
-  | gameState game == Running =
-    pictures [renderBackstage, renderPlayer] <>
-    debugPic (grassWidth - windowSizeX / 2) 0
+  | gameState game == Running = pictures [renderBackstage, renderPlayer]
   | otherwise = pictures [renderBackstage]
   where
     renderPlayer = translate (manPosX game) (manPosY game) manPic
-    backstage = pictures [grassPic]
+    backstage = pictures [skyPic, grassPic]
     curBackstagePos = head $ backgrounds game
     nextBackstagePos = head $ tail $ backgrounds game
     renderBackstage =
-      translate (initTranslateSky + backgroundPosX game) 0 skyPic <>
       translate
         (initTranslateGrass + backgroundPosX game + curBackstagePos)
         0
@@ -113,6 +121,8 @@ render game
         0
         backstage
 
+-- >>> initTranslateGrass
+-- 674.0
 -- | Physics constants
 gAcc :: Float
 gAcc = 300
@@ -129,6 +139,7 @@ updateGame seconds game =
     { manPosY = nextManPosY
     , manSpeedY = nextManSpeedY
     , backgroundPosX = nextBackgroundPosX
+    , backgrounds = nextBackgrounds
     }
   where
     nextManPosY
@@ -138,7 +149,15 @@ updateGame seconds game =
       | checkFloorCollision game = 0
       | otherwise = manSpeedY game - gAcc * seconds
     nextBackgroundPosX = backgroundPosX game - 4
+    nextBackgrounds
+      | nextBackgroundPosX < -(head $ tail $ backgrounds game) =
+        drop 1 $ backgrounds game
+      | otherwise = backgrounds game
 
+-- testGame :: Game
+-- testGame = initGame{backgroundPosX = -grassWidth, backgrounds = take 5 $ backgrounds initGame}
+-- >>> updateGame 0 testGame
+-- Game {manSpeedX = 0.0, manSpeedY = 0.0, gameSpeed = 0.0, gameState = Running, manPosX = -100.0, manPosY = -190.0, backgrounds = [2048.0,4096.0,6144.0,8192.0], backgroundPosX = -2052.0}
 initGame :: Game
 initGame =
   Game
@@ -150,6 +169,7 @@ initGame =
     , manPosY = bottomBorder
     , backgrounds = [0,grassWidth ..]
     , backgroundPosX = 0
+    , obstacles = []
     }
 
 handleEvents :: Event -> Game -> Game
@@ -164,6 +184,5 @@ handleEvents _ game = game
 runGame :: IO ()
 runGame = do
   play window white 60 initGame render handleEvents updateGame
-
 -- runGame :: IO ()
 -- runGame = display window white (render initGame)
