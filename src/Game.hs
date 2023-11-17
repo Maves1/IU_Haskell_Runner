@@ -2,7 +2,6 @@ module Game
   ( runGame
   ) where
 
-import           Debug.Trace
 import           System.IO.Unsafe
 import           System.Random
 
@@ -19,15 +18,20 @@ data GameState
   | Finished
   deriving (Show, Eq)
 
+data Man =
+  Man
+    { speedX :: Float
+    , speedY :: Float
+    , posX   :: Float
+    , posY   :: Float
+    } deriving (Show)
+
 -- We need to store game state
 data Game =
   Game
-    { manSpeedX            :: Float
-    , manSpeedY            :: Float
+    { man                  :: Man
     , gameSpeed            :: Float
     , gameState            :: GameState
-    , manPosX              :: Float
-    , manPosY              :: Float
     , backgrounds          :: [Float]
     , backgroundPosX       :: Float
     , obstacles            :: [Float]
@@ -113,7 +117,7 @@ render game
     pictures [renderBackstage, renderPlayer, renderObstacles]
   | otherwise = pictures [renderBackstage]
   where
-    renderPlayer = translate (manPosX game) (manPosY game) manPic
+    renderPlayer = translate (posX $ man game) (posY $ man game) manPic
     backstage = pictures [skyPic, grassPic]
     curBackstagePos = head $ backgrounds game
     nextBackstagePos = head $ tail $ backgrounds game
@@ -136,15 +140,15 @@ jumpForce :: Float
 jumpForce = 400
 
 checkFloorCollision :: Game -> Bool
-checkFloorCollision game = manPosY game < bottomBorder
+checkFloorCollision game = posY (man game) < bottomBorder
 
 checkCrush :: Game -> Bool
 checkCrush game =
-  let playerPosX = manPosX game
-      playerPosY = manPosY game
+  let playerPosX = posX $ man game
+      playerPosY = posY $ man game
       obstaclePosX = head (obstacles game) + obstaclesTranslation game
       obstaclePosY = obstacleY
-   in (playerPosX + manSize / 2) >= (obstaclePosX -  obstacleWidth / 2) &&
+   in (playerPosX + manSize / 2) >= (obstaclePosX - obstacleWidth / 2) &&
       playerPosX <= (obstaclePosX + obstacleWidth / 2) &&
       playerPosY <= (obstaclePosY + obstacleHeight)
 
@@ -157,8 +161,7 @@ updateGameSate game
 updateGame :: Float -> Game -> Game
 updateGame seconds game =
   game
-    { manPosY = nextManPosY
-    , manSpeedY = nextManSpeedY
+    { man = (man game) {posY = nextManPosY, speedY = nextManSpeedY}
     , backgroundPosX = nextBackgroundPosX
     , backgrounds = nextBackgrounds
     , obstacles = nextObstacles
@@ -168,11 +171,11 @@ updateGame seconds game =
   where
     nextManPosY
       | checkFloorCollision game = bottomBorder
-      | otherwise = manPosY game + manSpeedY game * seconds
+      | otherwise = posY (man game) + speedY (man game) * seconds
     nextManSpeedY
-      | manSpeedY game == 0 = 0
+      | speedY (man game) == 0 = 0
       | checkFloorCollision game = 0
-      | otherwise = manSpeedY game - gAcc * seconds
+      | otherwise = speedY (man game) - gAcc * seconds
     nextBackgroundPosX = backgroundPosX game - gameSpeed game
     nextBackgrounds
       | nextBackgroundPosX < -(head $ tail $ backgrounds game) =
@@ -189,12 +192,9 @@ updateGame seconds game =
 initGame :: StdGen -> Game
 initGame g =
   Game
-    { manSpeedX = 0
-    , manSpeedY = 0
+    { man = Man {speedX = 0, speedY = 0, posX = -100, posY = bottomBorder}
     , gameSpeed = 4
     , gameState = Running
-    , manPosX = -100
-    , manPosY = bottomBorder
     , backgrounds = [0,grassWidth ..]
     , backgroundPosX = 0
     , obstacles = randomRs (350, 1000) g
@@ -211,12 +211,12 @@ testGame = initGame testGen
 -- False
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
-  game {manSpeedY = newManSpeedY}
+  game {man = (man game) {speedY = newManSpeedY}}
   where
     newManSpeedY
-      | manPosY game == bottomBorder = jumpForce
-      | otherwise = manSpeedY game
-handleEvents (EventKey (Char 'r') Down _ _) game = initGame testGen
+      | posY (man game) == bottomBorder = jumpForce
+      | otherwise = speedY (man game)
+handleEvents (EventKey (Char 'r') Down _ _) _game = initGame testGen
 handleEvents _ game = game
 
 runGame :: IO ()
