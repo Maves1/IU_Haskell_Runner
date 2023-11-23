@@ -24,7 +24,8 @@ data Man =
     , speedY :: Float
     , posX   :: Float
     , posY   :: Float
-    } deriving (Show)
+    }
+  deriving (Show)
 
 -- We need to store game state
 data Game =
@@ -51,6 +52,9 @@ windowSizeY = 700
 manSize :: Float
 manSize = 16
 
+topGrassSize :: Float
+topGrassSize = 22
+
 grassSize :: Float
 grassSize = 150
 
@@ -61,7 +65,7 @@ skyWidth :: Float
 skyWidth = 2048
 
 bottomBorder :: Float
-bottomBorder = - windowSizeY / 2 + grassSize
+bottomBorder = -windowSizeY / 2 + grassSize
 
 obstacleWidth :: Float
 obstacleWidth = 30
@@ -70,7 +74,7 @@ obstacleHeight :: Float
 obstacleHeight = 100
 
 obstacleY :: Float
-obstacleY = bottomBorder + obstacleHeight / 2 - 22 -- | 22 accounts for top-most layer of grass
+obstacleY = bottomBorder + obstacleHeight / 2 - topGrassSize -- | 22 accounts for top-most layer of grass
 
 obstaclePic :: Picture
 obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
@@ -82,7 +86,7 @@ initTranslateGrassX :: Float
 initTranslateGrassX = grassWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
 
 initTranslateGrassY :: Float
-initTranslateGrassY = - windowSizeY / 2 + grassSize / 2
+initTranslateGrassY = -windowSizeY / 2 + grassSize / 2
 
 initTranslateSky :: Float
 initTranslateSky = skyWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
@@ -99,10 +103,14 @@ getSprite name = "sprites/" ++ name ++ ".bmp"
 -- manPic :: Picture
 manPic :: Picture
 manPic = unsafePerformIO . loadBMP . getSprite $ "man"
--- manPic = color black $ rectangleSolid manSize manSize
 
+-- manPic = color black $ rectangleSolid manSize manSize
 grassPic :: Picture
-grassPic = translate 0 initTranslateGrassY (unsafePerformIO . loadBMP . getSprite $ "grass")
+grassPic =
+  translate
+    0
+    initTranslateGrassY
+    (unsafePerformIO . loadBMP . getSprite $ "grass")
 
 skyPic :: Picture
 skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
@@ -152,13 +160,17 @@ checkCrush game =
       obstaclePosX = head (obstacles game) + obstaclesTranslation game
    in (playerPosX + manSize / 2) >= (obstaclePosX - obstacleWidth / 2) &&
       playerPosX <= (obstaclePosX + obstacleWidth / 2) &&
-      playerPosY <= (obstacleY + obstacleHeight - 22) -- | See obstacleY to understand what 22 is
+      playerPosY <= (obstacleY + obstacleHeight / 2 + topGrassSize)
 
 updateGameSate :: Game -> GameState
 updateGameSate game
   | gameState game == Over = Over
   | checkCrush game = Over
   | otherwise = gameState game
+
+
+accelerate :: Float
+accelerate = 0.001
 
 updateGame :: Float -> Game -> Game
 updateGame seconds game =
@@ -169,6 +181,7 @@ updateGame seconds game =
     , obstacles = nextObstacles
     , obstaclesTranslation = nextObstaclesTranslation
     , gameState = updateGameSate game
+    , gameSpeed = gameSpeed game + accelerate
     }
   where
     nextManPosY
@@ -185,7 +198,7 @@ updateGame seconds game =
       | otherwise = backgrounds game
     nextObstaclesTranslation
       | obstaclesTranslation game <
-          -windowSizeX / 2 - 100 - head (obstacles game) = 0
+          -windowSizeX / 2 - head (obstacles game) = 0
       | otherwise = obstaclesTranslation game - gameSpeed game
     nextObstacles
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
