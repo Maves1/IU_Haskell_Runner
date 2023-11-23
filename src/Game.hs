@@ -1,13 +1,15 @@
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Missing NOINLINE pragma" #-}
 module Game
   ( runGame
   ) where
 
-import           System.IO.Unsafe
-import           System.Random
-
 import           Graphics.Gloss
 import           Graphics.Gloss.Data.Bitmap       ()
 import           Graphics.Gloss.Interface.IO.Game
+import           System.IO.Unsafe
+import qualified System.Random                    as R
 
 -- Run: stack ghc -- Game.hs -o main -threaded
 data GameState
@@ -17,6 +19,18 @@ data GameState
   | Over
   | Finished
   deriving (Show, Eq)
+
+data ObstacleType
+  = Zombie
+  | Bird
+  deriving (Show, Eq)
+
+data Obstacle =
+  Obstacle
+    { obstacleType :: ObstacleType
+    , obstaclePos  :: Float
+    }
+  deriving (Show)
 
 data Man =
   Man
@@ -35,7 +49,7 @@ data Game =
     , gameState            :: GameState
     , backgrounds          :: [Float]
     , backgroundPosX       :: Float
-    , obstacles            :: [Float]
+    , obstacles            :: [Obstacle]
     , obstaclesTranslation :: Float
     }
   deriving (Show)
@@ -67,18 +81,30 @@ skyWidth = 2048
 bottomBorder :: Float
 bottomBorder = -windowSizeY / 2 + grassSize
 
-obstacleWidth :: Float
-obstacleWidth = 28
+zombieWidth :: Float
+zombieWidth = 28
 
-obstacleHeight :: Float
-obstacleHeight = 64
+zombieHeight :: Float
+zombieHeight = 64
 
-obstacleY :: Float
-obstacleY = bottomBorder + obstacleHeight / 2 - topGrassSize -- | 22 accounts for top-most layer of grass
+zombieY :: Float
+zombieY = bottomBorder + zombieHeight / 2 - topGrassSize -- | 22 accounts for top-most layer of grass
 
-obstaclePic :: Picture
+zombiePic :: Picture
 -- obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
-obstaclePic = unsafePerformIO . loadBMP . getSprite $ "zombie"
+zombiePic = unsafePerformIO . loadBMP . getSprite $ "zombie"
+
+birdHeight :: Float
+birdHeight = 28
+
+birdWidth :: Float
+birdWidth = 64
+
+birdPic :: Picture
+birdPic = color red $ rectangleSolid birdWidth birdHeight
+
+birdY :: Float
+birdY = bottomBorder + birdHeight / 2 - topGrassSize + 100
 
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
@@ -122,6 +148,12 @@ welcomePic = unsafePerformIO . loadBMP . getSprite $ "sky"
 debugPic :: Float -> Float -> Picture
 debugPic x y = translate x y $ color red $ circleSolid 5
 
+getCurObstaclePic :: Obstacle -> Picture
+getCurObstaclePic obstacle =
+  case obstacleType obstacle of
+    Zombie -> zombiePic
+    Bird   -> birdPic
+
 render :: Game -> Picture
 render game
   | gameState game == Welcome = pictures [renderBackstage]
@@ -142,8 +174,11 @@ render game
         (initTranslateGrassX + backgroundPosX game + nextBackstagePos)
         0
         backstage
-    nextObstaclePos = head (obstacles game) + obstaclesTranslation game
-    renderObstacles = translate nextObstaclePos obstacleY obstaclePic
+    nextObstaclePos =
+      obstaclePos (head (obstacles game)) + obstaclesTranslation game
+    renderObstacles =
+      translate nextObstaclePos (getObstacleY (head (obstacles game))) $
+      getCurObstaclePic (head (obstacles game))
 
 gAcc :: Float
 gAcc = 600
@@ -154,21 +189,43 @@ jumpForce = 400
 checkFloorCollision :: Game -> Bool
 checkFloorCollision game = posY (man game) < bottomBorder
 
+getObstacleY :: Obstacle -> Float
+getObstacleY obstacle =
+  case obstacleType obstacle of
+    Zombie -> zombieY
+    Bird   -> birdY
+
+getObstacleHeight :: Obstacle -> Float
+getObstacleHeight obstacle =
+  case obstacleType obstacle of
+    Zombie -> zombieHeight
+    Bird   -> birdHeight
+
+getObstacleWidth :: Obstacle -> Float
+getObstacleWidth obstacle =
+  case obstacleType obstacle of
+    Zombie -> zombieWidth
+    Bird   -> birdWidth
+
 checkCrush :: Game -> Bool
 checkCrush game =
   let playerPosX = posX $ man game
       playerPosY = posY $ man game
-      obstaclePosX = head (obstacles game) + obstaclesTranslation game
-   in (playerPosX + manSize / 2) >= (obstaclePosX - obstacleWidth / 2) &&
-      playerPosX <= (obstaclePosX + obstacleWidth / 2) &&
-      playerPosY <= (obstacleY + obstacleHeight / 2 + topGrassSize)
+      curObstacle = head $ obstacles game :: Obstacle
+      obstaclePosX = obstaclePos curObstacle + obstaclesTranslation game
+   in (playerPosX + manSize / 2) >=
+      (obstaclePosX - getObstacleWidth curObstacle / 2) &&
+      playerPosX <= (obstaclePosX + getObstacleWidth curObstacle / 2) &&
+      playerPosY <=
+      (getObstacleY curObstacle + getObstacleHeight curObstacle / 2 +
+       topGrassSize) && 
+      playerPosY >= (getObstacleY curObstacle - getObstacleHeight curObstacle / 2)
 
 updateGameSate :: Game -> GameState
 updateGameSate game
   | gameState game == Over = Over
   | checkCrush game = Over
   | otherwise = gameState game
-
 
 accelerate :: Float
 accelerate = 0.001
@@ -199,13 +256,34 @@ updateGame seconds game =
       | otherwise = backgrounds game
     nextObstaclesTranslation
       | obstaclesTranslation game <
-          -windowSizeX / 2 - head (obstacles game) = 0
+          -windowSizeX / 2 - obstaclePos (head (obstacles game)) = 0
       | otherwise = obstaclesTranslation game - gameSpeed game
     nextObstacles
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
       | otherwise = obstacles game
 
-initGame :: StdGen -> Game
+-- | Generate random obstacle with random tyoe and position
+generateObstacle :: R.StdGen -> Obstacle
+generateObstacle g =
+  Obstacle
+    { obstacleType =
+        if fst (R.randomR (minCat, maxCat) g) == 0
+          then Zombie
+          else Bird
+    , obstaclePos = fst $ R.randomR (350, 1000) g
+    }
+  where
+    minCat = 0 :: Int
+    maxCat = 1 :: Int
+
+generateObstacles :: R.StdGen -> [Obstacle]
+generateObstacles g = generateObstacle g : generateObstacles (snd $ R.split g)
+
+testGen :: R.StdGen
+testGen = R.mkStdGen 0
+
+-- | >>> generateObstacle testGen
+initGame :: R.StdGen -> Game
 initGame g =
   Game
     { man = Man {speedX = 0, speedY = 0, posX = -100, posY = bottomBorder}
@@ -213,12 +291,9 @@ initGame g =
     , gameState = Running
     , backgrounds = [0,grassWidth ..]
     , backgroundPosX = 0
-    , obstacles = randomRs (350, 1000) g
+    , obstacles = generateObstacles g
     , obstaclesTranslation = 1
     }
-
-testGen :: StdGen
-testGen = mkStdGen 0
 
 testGame :: Game
 testGame = initGame testGen
@@ -237,5 +312,5 @@ handleEvents _ game = game
 
 runGame :: IO ()
 runGame = do
-  g <- newStdGen
+  g <- R.newStdGen
   play window white 60 (initGame g) render handleEvents updateGame
