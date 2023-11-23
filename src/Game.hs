@@ -68,16 +68,17 @@ bottomBorder :: Float
 bottomBorder = -windowSizeY / 2 + grassSize
 
 obstacleWidth :: Float
-obstacleWidth = 30
+obstacleWidth = 28
 
 obstacleHeight :: Float
-obstacleHeight = 100
+obstacleHeight = 64
 
 obstacleY :: Float
 obstacleY = bottomBorder + obstacleHeight / 2 - topGrassSize -- | 22 accounts for top-most layer of grass
 
 obstaclePic :: Picture
-obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
+-- obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
+obstaclePic = unsafePerformIO . loadBMP . getSprite $ "zombie"
 
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
