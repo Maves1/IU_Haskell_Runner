@@ -49,10 +49,10 @@ windowSizeY :: Float
 windowSizeY = 700
 
 manSize :: Float
-manSize = 128
+manSize = 16
 
 grassSize :: Float
-grassSize = 160
+grassSize = 150
 
 grassWidth :: Float
 grassWidth = 2048
@@ -61,7 +61,7 @@ skyWidth :: Float
 skyWidth = 2048
 
 bottomBorder :: Float
-bottomBorder = -windowSizeY / 2 + grassSize
+bottomBorder = - windowSizeY / 2 + grassSize
 
 obstacleWidth :: Float
 obstacleWidth = 30
@@ -70,7 +70,7 @@ obstacleHeight :: Float
 obstacleHeight = 100
 
 obstacleY :: Float
-obstacleY = bottomBorder - 30
+obstacleY = bottomBorder + obstacleHeight / 2 - 22 -- | 22 accounts for top-most layer of grass
 
 obstaclePic :: Picture
 obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
@@ -78,8 +78,11 @@ obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
 
-initTranslateGrass :: Float
-initTranslateGrass = grassWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
+initTranslateGrassX :: Float
+initTranslateGrassX = grassWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
+
+initTranslateGrassY :: Float
+initTranslateGrassY = - windowSizeY / 2 + grassSize / 2
 
 initTranslateSky :: Float
 initTranslateSky = skyWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
@@ -94,12 +97,12 @@ getSprite name = "sprites/" ++ name ++ ".bmp"
 -- backgroundPic :: Picture
 -- backgroundPic =
 -- manPic :: Picture
--- manPic = unsafePerformIO . loadBMP . getSprite $ "man"
 manPic :: Picture
-manPic = color black $ rectangleSolid manSize manSize
+manPic = unsafePerformIO . loadBMP . getSprite $ "man"
+-- manPic = color black $ rectangleSolid manSize manSize
 
 grassPic :: Picture
-grassPic = unsafePerformIO . loadBMP . getSprite $ "bg1"
+grassPic = translate 0 initTranslateGrassY (unsafePerformIO . loadBMP . getSprite $ "grass")
 
 skyPic :: Picture
 skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
@@ -123,11 +126,11 @@ render game
     nextBackstagePos = head $ tail $ backgrounds game
     renderBackstage =
       translate
-        (initTranslateGrass + backgroundPosX game + curBackstagePos)
+        (initTranslateGrassX + backgroundPosX game + curBackstagePos)
         0
         backstage <>
       translate
-        (initTranslateGrass + backgroundPosX game + nextBackstagePos)
+        (initTranslateGrassX + backgroundPosX game + nextBackstagePos)
         0
         backstage
     nextObstaclePos = head (obstacles game) + obstaclesTranslation game
@@ -147,10 +150,9 @@ checkCrush game =
   let playerPosX = posX $ man game
       playerPosY = posY $ man game
       obstaclePosX = head (obstacles game) + obstaclesTranslation game
-      obstaclePosY = obstacleY
    in (playerPosX + manSize / 2) >= (obstaclePosX - obstacleWidth / 2) &&
       playerPosX <= (obstaclePosX + obstacleWidth / 2) &&
-      playerPosY <= (obstaclePosY + obstacleHeight)
+      playerPosY <= (obstacleY + obstacleHeight - 22) -- | See obstacleY to understand what 22 is
 
 updateGameSate :: Game -> GameState
 updateGameSate game
