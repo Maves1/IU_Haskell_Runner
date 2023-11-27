@@ -156,7 +156,7 @@ skyPic :: Picture
 skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
 
 welcomePic :: Picture
-welcomePic = unsafePerformIO . loadBMP . getSprite $ "sky"
+welcomePic = unsafePerformIO . loadBMP . getSprite $ "welcome"
 
 getCurObstaclePic :: Obstacle -> Picture
 getCurObstaclePic obstacle =
@@ -166,7 +166,7 @@ getCurObstaclePic obstacle =
 
 render :: Game -> Picture
 render game
-  | gameState game == Welcome = pictures [renderBackstage]
+  | gameState game == Welcome = pictures [renderBackstage, renderPlayer, renderWelcome]
   | gameState game == Running =
     pictures [renderBackstage, renderPlayer, renderObstacles, renderScore]
   | otherwise = pictures [renderBackstage]
@@ -190,6 +190,7 @@ render game
       translate nextObstaclePos (obstacleY (head (obstacles game))) $
       getCurObstaclePic (head (obstacles game))
     renderScore = scoreGen (gameScore game)
+    renderWelcome = translate 0 0 welcomePic
 
 scoreGen :: Int -> Picture
 scoreGen int =
@@ -267,24 +268,28 @@ updateMan seconds game = (man game) {posY = nextManPosY, speedY = nextManSpeedY}
       | checkFloorCollision game = 0
       | otherwise = speedY (man game) - gAcc * seconds
 
-updateGame :: Float -> Game -> Game
-updateGame seconds game =
-  game
-    { man = updateMan seconds game
-    , backgroundPosX = nextBackgroundPosX
-    , backgrounds = nextBackgrounds
-    , obstacles = nextObstacles
-    , obstaclesTranslation = nextObstaclesTranslation
-    , gameState = updateGameSate game
-    , gameSpeed = gameSpeed game + accelerate
-    , gameScore = newScore
-    }
+updateScore :: Game -> Int
+updateScore game =
+  case gameState game of
+    Over -> gameScore game
+    Welcome -> gameScore game
+    _ ->
+      if obstaclesTranslation game == 0
+        then gameScore game + 1
+        else gameScore game
+
+updateBackgounds :: Game -> (Float, [Float])
+updateBackgounds game = (nextBackgroundPosX, nextBackgrounds)
   where
     nextBackgroundPosX = backgroundPosX game - gameSpeed game
     nextBackgrounds
       | nextBackgroundPosX < -(head $ tail $ backgrounds game) =
         drop 1 $ backgrounds game
       | otherwise = backgrounds game
+
+updateObstacles :: Game -> (Float, [Obstacle])
+updateObstacles game = (nextObstaclesTranslation, nextObstacles)
+  where
     nextObstaclesTranslation
       | obstaclesTranslation game <
           -windowSizeX / 2 - obstaclePos (head (obstacles game)) = 0
@@ -292,10 +297,28 @@ updateGame seconds game =
     nextObstacles
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
       | otherwise = map updateObstacleY $ obstacles game
-    newScore
-      | checkCrush game = gameScore game
-      | nextObstaclesTranslation == 0 = gameScore game + 1
-      | otherwise = gameScore game
+
+updateGame :: Float -> Game -> Game
+updateGame seconds game =
+  case gameState game of
+    Welcome -> game
+    Over -> game
+    _ ->
+      game
+        { man = updateMan seconds game
+        , backgroundPosX = nextBackgroundPosX
+        , backgrounds = nextBackgrounds
+        , obstacles = nextObstacles
+        , obstaclesTranslation = nextObstaclesTranslation
+        , gameState = updateGameSate game
+        , gameSpeed = gameSpeed game + accelerate
+        , gameScore = updateScore game
+        }
+  where
+    nextBackgroundPosX = fst $ updateBackgounds game
+    nextBackgrounds = snd $ updateBackgounds game
+    nextObstaclesTranslation = fst $ updateObstacles game
+    nextObstacles = snd $ updateObstacles game
 
 -- | Generate random obstacle with random tyoe and position
 generateObstacle :: R.StdGen -> Obstacle
@@ -325,7 +348,7 @@ initGame g =
   Game
     { man = Man {speedX = 0, speedY = 0, posX = -100, posY = bottomBorder}
     , gameSpeed = 4
-    , gameState = Running
+    , gameState = Welcome
     , backgrounds = [0,grassWidth ..]
     , backgroundPosX = 0
     , obstacles = generateObstacles g
@@ -336,7 +359,10 @@ initGame g =
 
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
-  game {man = (man game) {speedY = newManSpeedY}}
+  case gameState game of
+    Welcome -> game {gameState = Running}
+    Running -> game {man = (man game) {speedY = newManSpeedY}}
+    _       -> game
   where
     newManSpeedY
       | posY (man game) == bottomBorder = jumpForce
