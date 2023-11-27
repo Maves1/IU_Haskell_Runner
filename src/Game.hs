@@ -51,11 +51,12 @@ data Game =
     , backgroundPosX       :: Float
     , obstacles            :: [Obstacle]
     , obstaclesTranslation :: Float
+    , generator           :: R.StdGen
     }
   deriving (Show)
 
 title :: String
-title = "Идущий к Реке v1.0 alpha"
+title = "Идущий к Реке v1.0 beta"
 
 windowSizeX :: Float
 windowSizeX = 700
@@ -88,7 +89,7 @@ zombieHeight :: Float
 zombieHeight = 64
 
 zombieY :: Float
-zombieY = bottomBorder + zombieHeight / 2 - topGrassSize -- | 22 accounts for top-most layer of grass
+zombieY = bottomBorder + zombieHeight / 2 - topGrassSize -- | topGrassSize accounts for top-most layer of grass
 
 zombiePic :: Picture
 -- obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
@@ -103,8 +104,11 @@ birdWidth = 64
 birdPic :: Picture
 birdPic = color red $ rectangleSolid birdWidth birdHeight
 
-birdY :: Float
-birdY = bottomBorder + birdHeight / 2 - topGrassSize + 100
+birdYMax :: Float
+birdYMax = bottomBorder + birdHeight / 2 - topGrassSize + 100
+
+birdYMin :: Float
+birdYMin = bottomBorder + birdHeight / 2 - topGrassSize + 20
 
 windowPosition :: (Int, Int)
 windowPosition = (100, 100)
@@ -125,13 +129,9 @@ window = InWindow title (round windowSizeX, round windowSizeY) windowPosition
 getSprite :: String -> FilePath
 getSprite name = "sprites/" ++ name ++ ".bmp"
 
--- backgroundPic :: Picture
--- backgroundPic =
--- manPic :: Picture
 manPic :: Picture
 manPic = unsafePerformIO . loadBMP . getSprite $ "man"
 
--- manPic = color black $ rectangleSolid manSize manSize
 grassPic :: Picture
 grassPic =
   translate
@@ -193,7 +193,7 @@ getObstacleY :: Obstacle -> Float
 getObstacleY obstacle =
   case obstacleType obstacle of
     Zombie -> zombieY
-    Bird   -> birdY
+    Bird   -> birdYMax
 
 getObstacleHeight :: Obstacle -> Float
 getObstacleHeight obstacle =
@@ -218,8 +218,9 @@ checkCrush game =
       playerPosX <= (obstaclePosX + getObstacleWidth curObstacle / 2) &&
       playerPosY <=
       (getObstacleY curObstacle + getObstacleHeight curObstacle / 2 +
-       topGrassSize) && 
-      playerPosY >= (getObstacleY curObstacle - getObstacleHeight curObstacle / 2)
+       topGrassSize) &&
+      playerPosY >=
+      (getObstacleY curObstacle - getObstacleHeight curObstacle / 2)
 
 updateGameSate :: Game -> GameState
 updateGameSate game
@@ -228,7 +229,7 @@ updateGameSate game
   | otherwise = gameState game
 
 accelerate :: Float
-accelerate = 0.001
+accelerate = 0.01
 
 updateGame :: Float -> Game -> Game
 updateGame seconds game =
@@ -279,10 +280,6 @@ generateObstacle g =
 generateObstacles :: R.StdGen -> [Obstacle]
 generateObstacles g = generateObstacle g : generateObstacles (snd $ R.split g)
 
-testGen :: R.StdGen
-testGen = R.mkStdGen 0
-
--- | >>> generateObstacle testGen
 initGame :: R.StdGen -> Game
 initGame g =
   Game
@@ -293,13 +290,9 @@ initGame g =
     , backgroundPosX = 0
     , obstacles = generateObstacles g
     , obstaclesTranslation = 1
+    , generator = g
     }
 
-testGame :: Game
-testGame = initGame testGen
-
--- >>> checkFloorCollision testGame
--- False
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
   game {man = (man game) {speedY = newManSpeedY}}
@@ -307,7 +300,7 @@ handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
     newManSpeedY
       | posY (man game) == bottomBorder = jumpForce
       | otherwise = speedY (man game)
-handleEvents (EventKey (Char 'r') Down _ _) _game = initGame testGen
+handleEvents (EventKey (Char 'r') Down _ _) _game = initGame (R.mkStdGen 0)
 handleEvents _ game = game
 
 runGame :: IO ()
