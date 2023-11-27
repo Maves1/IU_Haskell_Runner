@@ -54,6 +54,7 @@ data Game =
     , obstacles            :: [Obstacle]
     , obstaclesTranslation :: Float
     , generator            :: R.StdGen
+    , gameScore            :: Int
     }
   deriving (Show)
 
@@ -96,6 +97,16 @@ zombieY = bottomBorder + zombieHeight / 2 - topGrassSize -- | topGrassSize accou
 zombiePic :: Picture
 -- obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
 zombiePic = unsafePerformIO . loadBMP . getSprite $ "zombie"
+
+pic2bmp :: Picture -> BitmapData
+pic2bmp (Bitmap bmpData) = bmpData
+pic2bmp _                = error "pic2bmp: not a bitmap"
+
+numsSprite :: BitmapData
+numsSprite = pic2bmp nums
+
+nums :: Picture
+nums = unsafePerformIO . loadBMP . getSprite $ "num"
 
 birdHeight :: Float
 birdHeight = 28
@@ -147,9 +158,6 @@ skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
 welcomePic :: Picture
 welcomePic = unsafePerformIO . loadBMP . getSprite $ "sky"
 
-debugPic :: Float -> Float -> Picture
-debugPic x y = translate x y $ color red $ circleSolid 5
-
 getCurObstaclePic :: Obstacle -> Picture
 getCurObstaclePic obstacle =
   case obstacleType obstacle of
@@ -160,7 +168,7 @@ render :: Game -> Picture
 render game
   | gameState game == Welcome = pictures [renderBackstage]
   | gameState game == Running =
-    pictures [renderBackstage, renderPlayer, renderObstacles]
+    pictures [renderBackstage, renderPlayer, renderObstacles, renderScore]
   | otherwise = pictures [renderBackstage]
   where
     renderPlayer = translate (posX $ man game) (posY $ man game) manPic
@@ -181,6 +189,15 @@ render game
     renderObstacles =
       translate nextObstaclePos (obstacleY (head (obstacles game))) $
       getCurObstaclePic (head (obstacles game))
+    renderScore = scoreGen (gameScore game)
+
+scoreGen :: Int -> Picture
+scoreGen int =
+  translate (-0) 250 $ scale 3 3 $ pictures [translate (-8) 0 $ dig d, dig u]
+  where
+    dig i = bitmapSection (Rectangle (7 * i, 0) (7, 10)) numsSprite
+    u = int `mod` 10
+    d = int `div` 10
 
 gAcc :: Float
 gAcc = 600
@@ -239,17 +256,8 @@ updateObstacleY obstacle
         then not $ yMoveDirection obstacle
         else yMoveDirection obstacle
 
-updateGame :: Float -> Game -> Game
-updateGame seconds game =
-  game
-    { man = (man game) {posY = nextManPosY, speedY = nextManSpeedY}
-    , backgroundPosX = nextBackgroundPosX
-    , backgrounds = nextBackgrounds
-    , obstacles = nextObstacles
-    , obstaclesTranslation = nextObstaclesTranslation
-    , gameState = updateGameSate game
-    , gameSpeed = gameSpeed game + accelerate
-    }
+updateMan :: Float -> Game -> Man
+updateMan seconds game = (man game) {posY = nextManPosY, speedY = nextManSpeedY}
   where
     nextManPosY
       | checkFloorCollision game = bottomBorder
@@ -258,6 +266,20 @@ updateGame seconds game =
       | speedY (man game) == 0 = 0
       | checkFloorCollision game = 0
       | otherwise = speedY (man game) - gAcc * seconds
+
+updateGame :: Float -> Game -> Game
+updateGame seconds game =
+  game
+    { man = updateMan seconds game
+    , backgroundPosX = nextBackgroundPosX
+    , backgrounds = nextBackgrounds
+    , obstacles = nextObstacles
+    , obstaclesTranslation = nextObstaclesTranslation
+    , gameState = updateGameSate game
+    , gameSpeed = gameSpeed game + accelerate
+    , gameScore = newScore
+    }
+  where
     nextBackgroundPosX = backgroundPosX game - gameSpeed game
     nextBackgrounds
       | nextBackgroundPosX < -(head $ tail $ backgrounds game) =
@@ -270,6 +292,10 @@ updateGame seconds game =
     nextObstacles
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
       | otherwise = map updateObstacleY $ obstacles game
+    newScore
+      | checkCrush game = gameScore game
+      | nextObstaclesTranslation == 0 = gameScore game + 1
+      | otherwise = gameScore game
 
 -- | Generate random obstacle with random tyoe and position
 generateObstacle :: R.StdGen -> Obstacle
@@ -305,6 +331,7 @@ initGame g =
     , obstacles = generateObstacles g
     , obstaclesTranslation = 1
     , generator = g
+    , gameScore = 0
     }
 
 handleEvents :: Event -> Game -> Game
