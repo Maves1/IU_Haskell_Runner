@@ -27,8 +27,10 @@ data ObstacleType
 
 data Obstacle =
   Obstacle
-    { obstacleType :: ObstacleType
-    , obstaclePos  :: Float
+    { obstacleType   :: ObstacleType
+    , obstaclePos    :: Float
+    , obstacleY      :: Float
+    , yMoveDirection :: Bool -- | True - up, False - down
     }
   deriving (Show)
 
@@ -51,7 +53,7 @@ data Game =
     , backgroundPosX       :: Float
     , obstacles            :: [Obstacle]
     , obstaclesTranslation :: Float
-    , generator           :: R.StdGen
+    , generator            :: R.StdGen
     }
   deriving (Show)
 
@@ -177,7 +179,7 @@ render game
     nextObstaclePos =
       obstaclePos (head (obstacles game)) + obstaclesTranslation game
     renderObstacles =
-      translate nextObstaclePos (getObstacleY (head (obstacles game))) $
+      translate nextObstaclePos (obstacleY (head (obstacles game))) $
       getCurObstaclePic (head (obstacles game))
 
 gAcc :: Float
@@ -188,12 +190,6 @@ jumpForce = 400
 
 checkFloorCollision :: Game -> Bool
 checkFloorCollision game = posY (man game) < bottomBorder
-
-getObstacleY :: Obstacle -> Float
-getObstacleY obstacle =
-  case obstacleType obstacle of
-    Zombie -> zombieY
-    Bird   -> birdYMax
 
 getObstacleHeight :: Obstacle -> Float
 getObstacleHeight obstacle =
@@ -217,10 +213,8 @@ checkCrush game =
       (obstaclePosX - getObstacleWidth curObstacle / 2) &&
       playerPosX <= (obstaclePosX + getObstacleWidth curObstacle / 2) &&
       playerPosY <=
-      (getObstacleY curObstacle + getObstacleHeight curObstacle / 2 +
-       topGrassSize) &&
-      playerPosY >=
-      (getObstacleY curObstacle - getObstacleHeight curObstacle / 2)
+      (obstacleY curObstacle + getObstacleHeight curObstacle / 2 + topGrassSize) &&
+      playerPosY >= (obstacleY curObstacle - getObstacleHeight curObstacle / 2)
 
 updateGameSate :: Game -> GameState
 updateGameSate game
@@ -229,7 +223,21 @@ updateGameSate game
   | otherwise = gameState game
 
 accelerate :: Float
-accelerate = 0.01
+accelerate = 0.002
+
+updateObstacleY :: Obstacle -> Obstacle
+updateObstacleY obstacle
+  | obstacleType obstacle == Zombie = obstacle
+  | otherwise = obstacle {obstacleY = newY, yMoveDirection = newMoveDirection}
+  where
+    newY =
+      if yMoveDirection obstacle
+        then obstacleY obstacle + 1
+        else obstacleY obstacle - 1
+    newMoveDirection =
+      if newY >= birdYMax || newY <= birdYMin
+        then not $ yMoveDirection obstacle
+        else yMoveDirection obstacle
 
 updateGame :: Float -> Game -> Game
 updateGame seconds game =
@@ -261,21 +269,27 @@ updateGame seconds game =
       | otherwise = obstaclesTranslation game - gameSpeed game
     nextObstacles
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
-      | otherwise = obstacles game
+      | otherwise = map updateObstacleY $ obstacles game
 
 -- | Generate random obstacle with random tyoe and position
 generateObstacle :: R.StdGen -> Obstacle
 generateObstacle g =
   Obstacle
-    { obstacleType =
-        if fst (R.randomR (minCat, maxCat) g) == 0
-          then Zombie
-          else Bird
+    { obstacleType = obsType
     , obstaclePos = fst $ R.randomR (350, 1000) g
+    , obstacleY =
+        if obsType == Zombie
+          then zombieY
+          else fst $ R.randomR (birdYMin, birdYMax) g
+    , yMoveDirection = fst $ R.randomR (True, False) g
     }
   where
     minCat = 0 :: Int
     maxCat = 1 :: Int
+    obsType =
+      if fst (R.randomR (minCat, maxCat) g) == 0
+        then Zombie
+        else Bird
 
 generateObstacles :: R.StdGen -> [Obstacle]
 generateObstacles g = generateObstacle g : generateObstacles (snd $ R.split g)
