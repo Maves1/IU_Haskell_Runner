@@ -1,6 +1,8 @@
 # haskell-project
 
-This a simple runner game written in Haskell using the Gloss library. The goal of the game is to avoid the obstacles and collect as many points as possible. The points are gained by passing through the obstacles. The game ends when the player hits an obstacle.
+![welcome_picture](./readme_imgs/welcome.png)
+
+This a simple runner game written in Haskell using the Gloss library. The goal of the game is to avoid the obstacles and collect as many points as possible. The points are gained by avoiding the obstacles. The game ends when the player hits an obstacle.
 
 ### Game controls
 * To start the game press `Space`
@@ -12,3 +14,9 @@ To run this project you should simply run the following command in the project d
 ```bash
 stack run
 ```
+
+### Gameplay
+
+![gameplay_picture_1](./readme_imgs/gameplay_1.png)
+![gameplay_picture_2](./readme_imgs/gameplay_1.png)
+![welcome_picture](./readme_imgs/game_over.png)
