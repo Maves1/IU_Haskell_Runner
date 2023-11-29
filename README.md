@@ -17,6 +17,7 @@ stack run
 
 ### Gameplay
 
+![gameplay_gif](./readme_imgs/gameplay.gif)
 ![gameplay_picture_1](./readme_imgs/gameplay_1.png)
 ![gameplay_picture_2](./readme_imgs/gameplay_1.png)
 ![welcome_picture](./readme_imgs/game_over.png)
