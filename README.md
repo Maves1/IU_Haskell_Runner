@@ -23,6 +23,6 @@ stack run
 
 ### Sprites
 
-[Tiny Hero Sprites](https://craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/)
-[Free Zombie Sprite Sheet Pack Pixel Art](https://craftpix.net/freebies/free-zombie-sprite-sheet-pack-pixel-art/)
-[Haskell Flappy Bird](https://github.com/lollobaldo/Haskell-Flappy-Bird/tree/master/sprites)
+- [Tiny Hero Sprites](https://craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/)
+- [Free Zombie Sprite Sheet Pack Pixel Art](https://craftpix.net/freebies/free-zombie-sprite-sheet-pack-pixel-art/)
+- [Haskell Flappy Bird](https://github.com/lollobaldo/Haskell-Flappy-Bird/tree/master/sprites)
