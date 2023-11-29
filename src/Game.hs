@@ -1,6 +1,5 @@
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# OPTIONS_GHC -Wall #-}
 
-{-# HLINT ignore "Missing NOINLINE pragma" #-}
 module Game
   ( runGame
   ) where
@@ -12,28 +11,32 @@ import           System.IO.Unsafe
 import qualified System.Random                    as R
 
 -- Run: stack ghc -- Game.hs -o main -threaded
+-- | Game data types
 data GameState
-  = Welcome
-  | Running
-  | Paused
-  | Over
-  | Finished
+  = Welcome -- | Welcome screen
+  | Running -- | Game is running
+  | Paused -- | Game is paused
+  | Over -- | Game is over
+  | Finished -- | Game is finished
   deriving (Show, Eq)
 
+-- | Obstacle types
 data ObstacleType
   = Zombie
   | Bird
   deriving (Show, Eq)
 
+-- | Obstacle data type with position and type
 data Obstacle =
   Obstacle
     { obstacleType   :: ObstacleType
     , obstaclePos    :: Float
     , obstacleY      :: Float
-    , yMoveDirection :: Bool -- | True - up, False - down
+    , yMoveDirection :: Bool -- | True - up, False - down, used only for birds
     }
   deriving (Show)
 
+-- | data type for player with position and speed
 data Man =
   Man
     { speedX :: Float
@@ -43,59 +46,84 @@ data Man =
     }
   deriving (Show)
 
--- We need to store game state
+-- | Data type for game
 data Game =
   Game
-    { man                  :: Man
-    , gameSpeed            :: Float
-    , gameState            :: GameState
-    , backgrounds          :: [Float]
-    , backgroundPosX       :: Float
-    , obstacles            :: [Obstacle]
-    , obstaclesTranslation :: Float
-    , generator            :: R.StdGen
-    , gameScore            :: Int
+    { man                  :: Man -- | Player
+    , gameSpeed            :: Float -- | Game speed, increases with time
+    , gameState            :: GameState -- | Current game state
+    , backgrounds          :: [Float] -- | List of background positions
+    , backgroundPosX       :: Float -- | Current background position
+    , obstacles            :: [Obstacle] -- | List of obstacles
+    , obstaclesTranslation :: Float -- | Current obstacles translation
+    , generator            :: R.StdGen -- | Random generator
+    , gameScore            :: Int -- | Current game score
     }
   deriving (Show)
 
+-- ================== CONSTANTS ==================
 title :: String
 title = "Идущий к Реке v1.0 beta"
 
+-- | Window size in pixels
 windowSizeX :: Float
 windowSizeX = 700
 
 windowSizeY :: Float
 windowSizeY = 700
 
+-- | size of the player sprite in pixels
 manSize :: Float
 manSize = 16
 
-topGrassSize :: Float
-topGrassSize = 22
-
+-- | size of the grass sprite in pixels
 grassSize :: Float
 grassSize = 150
 
+-- | size of the grass under the earth in pixels
+topGrassSize :: Float
+topGrassSize = 22
+
+-- | width of the grass sprite in pixels
 grassWidth :: Float
 grassWidth = 2048
 
-skyWidth :: Float
-skyWidth = 2048
-
+-- | distance from the bottom border of the window to the bottom border of the grass sprite
 bottomBorder :: Float
 bottomBorder = -windowSizeY / 2 + grassSize
 
+-- | width of the zombie sprite in pixels
 zombieWidth :: Float
 zombieWidth = 28
 
+-- | height of the zombie sprite in pixels
 zombieHeight :: Float
 zombieHeight = 64
 
+-- | Distance from the bottom border of the window
+--   to the upper border of the zombie sprite
 zombieY :: Float
 zombieY = bottomBorder + zombieHeight / 2 - topGrassSize -- | topGrassSize accounts for top-most layer of grass
 
+-- | height of the bird sprite in pixels
+birdHeight :: Float
+birdHeight = 28
+
+-- | width of the bird sprite in pixels
+birdWidth :: Float
+birdWidth = 64
+
+-- | Bird can vertically move between birdYMin and birdYMax
+-- and Y is counted from the bottom border of the window
+birdYMax :: Float
+birdYMax = bottomBorder + birdHeight / 2 - topGrassSize + 100
+
+birdYMin :: Float
+birdYMin = bottomBorder + birdHeight / 2 - topGrassSize
+
+-- | Load sprites
 zombiePic :: Picture
--- obstaclePic = color red $ rectangleSolid obstacleWidth obstacleHeight
+{-# NOINLINE zombiePic #-}
 zombiePic = unsafePerformIO . loadBMP . getSprite $ "zombie"
 
 pic2bmp :: Picture -> BitmapData
@@ -106,43 +134,14 @@ numsSprite :: BitmapData
 numsSprite = pic2bmp nums
 
 nums :: Picture
+{-# NOINLINE nums #-}
 nums = unsafePerformIO . loadBMP . getSprite $ "num"
-
-birdHeight :: Float
-birdHeight = 28
-
-birdWidth :: Float
-birdWidth = 64
-
-birdPic :: Picture
-birdPic = color red $ rectangleSolid birdWidth birdHeight
-
-birdYMax :: Float
-birdYMax = bottomBorder + birdHeight / 2 - topGrassSize + 100
-
-birdYMin :: Float
-birdYMin = bottomBorder + birdHeight / 2 - topGrassSize + 20
-
-windowPosition :: (Int, Int)
-windowPosition = (100, 100)
-
-initTranslateGrassX :: Float
-initTranslateGrassX = grassWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
-
-initTranslateGrassY :: Float
-initTranslateGrassY = -windowSizeY / 2 + grassSize / 2
-
-initTranslateSky :: Float
-initTranslateSky = skyWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
-
--- | Graphics helper functions
-window :: Display
-window = InWindow title (round windowSizeX, round windowSizeY) windowPosition
 
 getSprite :: String -> FilePath
 getSprite name = "sprites/" ++ name ++ ".bmp"
 
 manPic :: Picture
+{-# NOINLINE manPic #-}
 manPic = unsafePerformIO . loadBMP . getSprite $ "man"
 
 grassPic :: Picture
@@ -153,37 +152,72 @@ grassPic =
     (unsafePerformIO . loadBMP . getSprite $ "grass")
 
 skyPic :: Picture
+{-# NOINLINE skyPic #-}
 skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
 
 welcomePic :: Picture
+{-# NOINLINE welcomePic #-}
 welcomePic = unsafePerformIO . loadBMP . getSprite $ "welcome"
 
+birdPic :: Picture
+birdPic = color red $ rectangleSolid birdWidth birdHeight
+
+-- | Window position in pixels
+windowPosition :: (Int, Int)
+windowPosition = (100, 100)
+
+-- | Translate grass sprite to the bottom border of the window
+initTranslateGrassX :: Float
+initTranslateGrassX = grassWidth / 2 - windowSizeX / 2 -- starting from the left border of the picture
+
+initTranslateGrassY :: Float
+initTranslateGrassY = -windowSizeY / 2 + grassSize / 2
+
+-- | Graphics helper functions
+window :: Display
+window = InWindow title (round windowSizeX, round windowSizeY) windowPosition
+
+-- | Acceleration of the game speed
+accelerate :: Float
+accelerate = 0.002
+
+-- | Acceleration of the gravity
+gAcc :: Float
+gAcc = 600
+
+jumpForce :: Float
+jumpForce = 400
+
+-- ===============================================
+-- | Get current obstacle picture
 getCurObstaclePic :: Obstacle -> Picture
 getCurObstaclePic obstacle =
   case obstacleType obstacle of
     Zombie -> zombiePic
     Bird   -> birdPic
 
-render :: Game -> Picture
-render game
-  | gameState game == Welcome = pictures [renderBackstage, renderPlayer, renderWelcome]
-  | gameState game == Running =
-    pictures [renderBackstage, renderPlayer, renderObstacles, renderScore]
-  | otherwise = pictures [renderBackstage]
+-- | render the background of the game (sky and grass)
+renderBackstage :: Game -> Picture
+renderBackstage game =
+  translate (translationGrassX curBackstagePos) 0 backstage <>
+  translate (translationGrassX nextBackstagePos) 0 backstage
   where
-    renderPlayer = translate (posX $ man game) (posY $ man game) manPic
     backstage = pictures [skyPic, grassPic]
     curBackstagePos = head $ backgrounds game
     nextBackstagePos = head $ tail $ backgrounds game
-    renderBackstage =
-      translate
-        (initTranslateGrassX + backgroundPosX game + curBackstagePos)
-        0
-        backstage <>
-      translate
-        (initTranslateGrassX + backgroundPosX game + nextBackstagePos)
-        0
-        backstage
+    translationGrassX :: Float -> Float -- | translate grass and sky sprite to the given position
+    translationGrassX x = initTranslateGrassX + backgroundPosX game + x
+
+-- | Reneder the game
+render :: Game -> Picture
+render game
+  | gameState game == Welcome =
+    pictures [renderBackstage game, renderPlayer, renderWelcome]
+  | gameState game == Running =
+    pictures [renderBackstage game, renderPlayer, renderObstacles, renderScore]
+  | otherwise = pictures [renderBackstage game]
+  where
+    renderPlayer = translate (posX $ man game) (posY $ man game) manPic
     nextObstaclePos =
       obstaclePos (head (obstacles game)) + obstaclesTranslation game
     renderObstacles =
@@ -192,6 +226,7 @@ render game
     renderScore = scoreGen (gameScore game)
     renderWelcome = translate 0 0 welcomePic
 
+-- | Generate score picture from 0 to 99
 scoreGen :: Int -> Picture
 scoreGen int =
   translate (-0) 250 $ scale 3 3 $ pictures [translate (-8) 0 $ dig d, dig u]
@@ -200,12 +235,7 @@ scoreGen int =
     u = int `mod` 10
     d = int `div` 10
 
-gAcc :: Float
-gAcc = 600
-
-jumpForce :: Float
-jumpForce = 400
-
+-- | Check if player is on the floor
 checkFloorCollision :: Game -> Bool
 checkFloorCollision game = posY (man game) < bottomBorder
 
@@ -221,6 +251,7 @@ getObstacleWidth obstacle =
     Zombie -> zombieWidth
     Bird   -> birdWidth
 
+-- | Check if player crushes with the obstacle
 checkCrush :: Game -> Bool
 checkCrush game =
   let playerPosX = posX $ man game
@@ -234,15 +265,14 @@ checkCrush game =
       (obstacleY curObstacle + getObstacleHeight curObstacle / 2 + topGrassSize) &&
       playerPosY >= (obstacleY curObstacle - getObstacleHeight curObstacle / 2)
 
+-- | Update game state
 updateGameSate :: Game -> GameState
 updateGameSate game
   | gameState game == Over = Over
   | checkCrush game = Over
   | otherwise = gameState game
 
-accelerate :: Float
-accelerate = 0.002
-
+-- | Update bird vertical position
 updateObstacleY :: Obstacle -> Obstacle
 updateObstacleY obstacle
   | obstacleType obstacle == Zombie = obstacle
@@ -257,6 +287,7 @@ updateObstacleY obstacle
         then not $ yMoveDirection obstacle
         else yMoveDirection obstacle
 
+-- | Update player position and speed
 updateMan :: Float -> Game -> Man
 updateMan seconds game = (man game) {posY = nextManPosY, speedY = nextManSpeedY}
   where
@@ -268,6 +299,7 @@ updateMan seconds game = (man game) {posY = nextManPosY, speedY = nextManSpeedY}
       | checkFloorCollision game = 0
       | otherwise = speedY (man game) - gAcc * seconds
 
+-- | Update game score after passing the obstacle
 updateScore :: Game -> Int
 updateScore game =
   case gameState game of
@@ -278,6 +310,7 @@ updateScore game =
         then gameScore game + 1
         else gameScore game
 
+-- | Update background positions
 updateBackgounds :: Game -> (Float, [Float])
 updateBackgounds game = (nextBackgroundPosX, nextBackgrounds)
   where
@@ -287,6 +320,7 @@ updateBackgounds game = (nextBackgroundPosX, nextBackgrounds)
         drop 1 $ backgrounds game
       | otherwise = backgrounds game
 
+-- | Update obstacles positions
 updateObstacles :: Game -> (Float, [Obstacle])
 updateObstacles game = (nextObstaclesTranslation, nextObstacles)
   where
@@ -298,6 +332,7 @@ updateObstacles game = (nextObstaclesTranslation, nextObstacles)
       | nextObstaclesTranslation == 0 = drop 1 $ obstacles game
       | otherwise = map updateObstacleY $ obstacles game
 
+-- | Update the total game state
 updateGame :: Float -> Game -> Game
 updateGame seconds game =
   case gameState game of
@@ -340,9 +375,11 @@ generateObstacle g =
         then Zombie
         else Bird
 
+-- | Generate list of obstacles
 generateObstacles :: R.StdGen -> [Obstacle]
 generateObstacles g = generateObstacle g : generateObstacles (snd $ R.split g)
 
+-- | Initialize the game
 initGame :: R.StdGen -> Game
 initGame g =
   Game
@@ -357,6 +394,9 @@ initGame g =
     , gameScore = 0
     }
 
+-- | Handle events
+--  Space - jump
+--  R - restart
 handleEvents :: Event -> Game -> Game
 handleEvents (EventKey (SpecialKey KeySpace) Down _ _) game =
   case gameState game of
