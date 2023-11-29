@@ -20,3 +20,9 @@ stack run
 ![gameplay_picture_1](./readme_imgs/gameplay_1.png)
 ![gameplay_picture_2](./readme_imgs/gameplay_1.png)
 ![welcome_picture](./readme_imgs/game_over.png)
+
+### Sprites
+
+[Tiny Hero Sprites](https://craftpix.net/freebies/free-pixel-art-tiny-hero-sprites/)
+[Free Zombie Sprite Sheet Pack Pixel Art](https://craftpix.net/freebies/free-zombie-sprite-sheet-pack-pixel-art/)
+[Haskell Flappy Bird](https://github.com/lollobaldo/Haskell-Flappy-Bird/tree/master/sprites)
