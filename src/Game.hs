@@ -107,11 +107,11 @@ zombieY = bottomBorder + zombieHeight / 2 - topGrassSize -- | topGrassSize accou
 
 -- | height of the bird sprite in pixels
 birdHeight :: Float
-birdHeight = 28
+birdHeight = 16
 
 -- | width of the bird sprite in pixels
 birdWidth :: Float
-birdWidth = 64
+birdWidth = 16
 
 -- | Bird can vertically move between birdYMin and birdYMax
 -- and Y is counted from the bottom border of the window
@@ -160,7 +160,8 @@ welcomePic :: Picture
 welcomePic = unsafePerformIO . loadBMP . getSprite $ "welcome"
 
 birdPic :: Picture
-birdPic = color red $ rectangleSolid birdWidth birdHeight
+{-# NOINLINE birdPic #-}
+birdPic = unsafePerformIO . loadBMP . getSprite $ "monster"
 
 -- | Window position in pixels
 windowPosition :: (Int, Int)
