@@ -121,6 +121,15 @@ birdYMax = bottomBorder + birdHeight / 2 - topGrassSize + 100
 birdYMin :: Float
 birdYMin = bottomBorder + birdHeight / 2 - topGrassSize
 
+scoreFinalOffsetY :: Float
+scoreFinalOffsetY = -170
+
+welcomePicOffsetY :: Float
+welcomePicOffsetY = 175
+
+gameOverPicOffsetY :: Float
+gameOverPicOffsetY = 175
+
 -- | Load sprites
 zombiePic :: Picture
 {-# NOINLINE zombiePic #-}
@@ -157,7 +166,11 @@ skyPic = unsafePerformIO . loadBMP . getSprite $ "sky"
 
 welcomePic :: Picture
 {-# NOINLINE welcomePic #-}
-welcomePic = unsafePerformIO . loadBMP . getSprite $ "welcome"
+welcomePic = unsafePerformIO . loadBMP . getSprite $ "welcome_sign"
+
+gameOverPic :: Picture
+{-# NOINLINE gameOverPic #-}
+gameOverPic = unsafePerformIO . loadBMP . getSprite $ "game_over_sign"
 
 birdPic :: Picture
 {-# NOINLINE birdPic #-}
@@ -216,6 +229,8 @@ render game
     pictures [renderBackstage game, renderPlayer, renderWelcome]
   | gameState game == Running =
     pictures [renderBackstage game, renderPlayer, renderObstacles, renderScore]
+  | gameState game == Over =
+    pictures [renderBackstage game, renderOver, translate 0 scoreFinalOffsetY renderScore]
   | otherwise = pictures [renderBackstage game]
   where
     renderPlayer = translate (posX $ man game) (posY $ man game) manPic
@@ -225,7 +240,8 @@ render game
       translate nextObstaclePos (obstacleY (head (obstacles game))) $
       getCurObstaclePic (head (obstacles game))
     renderScore = scoreGen (gameScore game)
-    renderWelcome = translate 0 0 welcomePic
+    renderWelcome = translate 0 welcomePicOffsetY welcomePic
+    renderOver = translate 0 gameOverPicOffsetY gameOverPic
 
 -- | Generate score picture from 0 to 99
 scoreGen :: Int -> Picture
